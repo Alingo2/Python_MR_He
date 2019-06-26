@@ -1,4 +1,3 @@
-import selenium as sel
 from selenium import webdriver
 from selenium.common.exceptions import TimeoutException
 from selenium.webdriver.common.by import By
@@ -19,8 +18,8 @@ browser = webdriver.Firefox()        #拿到浏览器的对象
 WAIT = WebDriverWait(browser, 10)   #设置最长超时时间
 browser.set_window_size(1400, 900)
 header={
-    'User-Agent':'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0'
-}#Firefox的用户代理
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0'
+}       #Firefox的用户代理
 
 def search():
     try:
@@ -28,7 +27,6 @@ def search():
         browser.get("https://bilibili.com/")    #访问b站
         s = requests.Session()
         s.cookies = cookiejar.CookieJar()
-        site = s.get('https://bilibili.com/', headers=header)
 
         index = WAIT.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#primary_menu > ul > li.home > a")))
         # 被那个登录遮住了 解决：先去主页刷新一下，再登陆
@@ -46,18 +44,23 @@ def search():
         print('跳转到新窗口')
         all_h = browser.window_handles
         browser.switch_to.window(all_h[1])
+        print(str(browser.current_url))
+        site = s.get(str(browser.current_url), headers=header)   #获取新网页当前的url 得转换成string
         get_source()
 
         total=get_pagenum(site)
-        return int(total.text)
+        return int(total)
     except TimeoutException:
         return search()
 
 def get_pagenum(site):
     soup = bs(site.text, 'html.parser')
-    num = soup.find_all('button', class_='pagination-btn num-btn')
-    print(num)
-    return
+    Num = soup.find_all('button', class_='pagination-btn num-btn')
+    count = 0   #统计一下有几页
+    for i in Num:
+        count += 1
+    print(count)
+    return count
 #主函数
 total=search()
 print(total)
