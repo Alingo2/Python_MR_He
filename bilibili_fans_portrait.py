@@ -24,6 +24,8 @@ sheet.write(0, 2, '描述')
 sheet.write(0, 3, '观看次数')
 sheet.write(0, 4, '弹幕数')
 sheet.write(0, 5, '发布时间')
+sheet.write(0, 6, '作者')
+
 
 n = 1
 
@@ -37,10 +39,10 @@ def save_to_excel(soup):
         item_view = item.find(class_='so-icon watch-num').text
         item_biubiu = item.find(class_='so-icon hide').text
         item_date = item.find(class_='so-icon time').text
-
+        item_author = item.find(class_='up-name').text
         print('爬取：' + item_title)
 
-        global n
+        global n        #global关键字可以对全局变量进行修改！
 
         sheet.write(n, 0, item_title)
         sheet.write(n, 1, item_link)
@@ -48,6 +50,7 @@ def save_to_excel(soup):
         sheet.write(n, 3, item_view)
         sheet.write(n, 4, item_biubiu)
         sheet.write(n, 5, item_date)
+        sheet.write(n, 6, item_author)
 
         n = n + 1
 
@@ -55,7 +58,7 @@ def get_source():
     WAIT.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#server-search-app > div.contain > div.body-contain > div > div.result-wrap.clearfix')))
     html = browser.page_source
     soup = bs(html, 'lxml')
-    save_to_excel(soup)
+    save_to_excel(soup)     #把数据添加到excel
 
 def search():
     try:
@@ -65,7 +68,7 @@ def search():
         s.cookies = cookiejar.CookieJar()
 
         index = WAIT.until(EC.element_to_be_clickable((By.CSS_SELECTOR, "#primary_menu > ul > li.home > a")))
-        # 被那个登录遮住了 解决：先去主页刷新一下，再登陆
+        # 被那个登录遮住了 解决：先去主页刷新一下，再
         index.click()
 
         input = WAIT.until(EC.presence_of_element_located((By.CSS_SELECTOR, "#banner_link > div > div > form > input")))
@@ -114,4 +117,4 @@ def main():
         get_the_page(i)
 
 main()
-book.save(u'何同学视频.xlsx')
+book.save(u'何同学视频.xlsx')        #一定记得保存！我检查了好久才发现自己少了这一句...
