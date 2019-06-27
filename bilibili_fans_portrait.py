@@ -8,18 +8,54 @@ import xlwt
 import requests
 from http import cookiejar
 
+browser = webdriver.Chrome()        #拿到浏览器的对象
+WAIT = WebDriverWait(browser, 10)   #设置最长超时时间
+browser.set_window_size(1400, 900)
+header={
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/74.0.3729.169 Safari/537.36'
+}       #Chrome的用户代理
+
+book = xlwt.Workbook(encoding='utf-8', style_compression=0)
+
+sheet = book.add_sheet('何同学视频', cell_overwrite_ok=True)
+sheet.write(0, 0, '名称')
+sheet.write(0, 1, '地址')
+sheet.write(0, 2, '描述')
+sheet.write(0, 3, '观看次数')
+sheet.write(0, 4, '弹幕数')
+sheet.write(0, 5, '发布时间')
+
+n = 1
+
+def save_to_excel(soup):
+    list = soup.find(class_='all-contain').find_all(class_='info')
+    print(list)
+    for item in list:
+        item_title = item.find('a').get('title')
+        item_link = item.find('a').get('href')
+        item_dec = item.find(class_='des hide').text
+        item_view = item.find(class_='so-icon watch-num').text
+        item_biubiu = item.find(class_='so-icon hide').text
+        item_date = item.find(class_='so-icon time').text
+
+        print('爬取：' + item_title)
+
+        global n
+
+        sheet.write(n, 0, item_title)
+        sheet.write(n, 1, item_link)
+        sheet.write(n, 2, item_dec)
+        sheet.write(n, 3, item_view)
+        sheet.write(n, 4, item_biubiu)
+        sheet.write(n, 5, item_date)
+
+        n = n + 1
+
 def get_source():
     WAIT.until(EC.presence_of_element_located((By.CSS_SELECTOR, '#server-search-app > div.contain > div.body-contain > div > div.result-wrap.clearfix')))
     html = browser.page_source
     soup = bs(html, 'lxml')
-    #save_to_excel(soup)
-
-browser = webdriver.Firefox()        #拿到浏览器的对象
-WAIT = WebDriverWait(browser, 10)   #设置最长超时时间
-browser.set_window_size(1400, 900)
-header={
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; WOW64; rv:47.0) Gecko/20100101 Firefox/47.0'
-}       #Firefox的用户代理
+    save_to_excel(soup)
 
 def search():
     try:
@@ -49,18 +85,33 @@ def search():
         get_source()
 
         total=get_pagenum(site)
-        return int(total)
+        return total
     except TimeoutException:
         return search()
 
 def get_pagenum(site):
     soup = bs(site.text, 'html.parser')
     Num = soup.find_all('button', class_='pagination-btn num-btn')
-    count = 0   #统计一下有几页
+    count = 0                                                   #统计一下有几页
     for i in Num:
-        count += 1
+        count = count+1
     print(count)
     return count
+def get_the_page(i):
+    try:
+        print("开始访问第 %d 页" % i)       #尝试一下格式化输出~
+        next_btn = WAIT.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#server-search-app > div.contain > div.body-contain > div > div.page-wrap > div > ul > li.page-item.next > button')))
+        next_btn.click()
+        get_source()
+    except TimeoutException:        #如果超时，应该是在最后一页了（nextbutton 不存在 超时）
+        return
+
 #主函数
-total=search()
-print(total)
+def main():
+    total = search()
+    for i in range(1, total+1, 1):
+        print(i)
+        get_the_page(i)
+
+main()
+book.save(u'何同学视频.xlsx')
