@@ -5,8 +5,6 @@ from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from bs4 import BeautifulSoup as bs
 import xlwt
-import requests
-from http import cookiejar
 
 browser = webdriver.Chrome()        #拿到浏览器的对象
 browser.set_window_size(1400, 900)
@@ -19,12 +17,9 @@ print('访问b站....')
 browser.get("https://space.bilibili.com/163637592/fans/fans")    #访问b站
 
 Url = []
-Name = []
 book = xlwt.Workbook(encoding='utf-8', style_compression=0)
 sheet = book.add_sheet('粉丝数据', cell_overwrite_ok=True)
-sheet.write(0, 0, '粉丝名')
-sheet.write(0, 1, '地址')
-n = 1
+n = 0
 
 
 def get_fans(i):
@@ -36,11 +31,9 @@ def get_fans(i):
         for item in List:
             url = item.find('a').get('href')
             Url.append(url)
-            name = item.find('span').get('vip-name-check fans-name')
-            Name.append(name)
+            print(url)
             global n  # global关键字可以对全局变量进行修改！
-            sheet.write(n, 0, name)
-            sheet.write(n, 1, url)
+            sheet.write(n, 0, url)
             n += 1
 
     else:
@@ -49,15 +42,13 @@ def get_fans(i):
 def get_the_page(i):
     try:
         print("开始访问第 %d 页" % i)       #尝试一下格式化输出~
-        get_fans(i)
-        next_btn = WAIT.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#server-search-app > div.contain > div.body-contain > div > div.page-wrap > div > ul > li.page-item.next > button')))
+        next_btn = WAIT.until(EC.element_to_be_clickable((By.CSS_SELECTOR, '#page-follows > div > div.follow-main > div.follow-content.section > div.content > ul.be-pager > li.be-pager-next')))
         next_btn.click()
+        get_fans(i)
     except TimeoutException:        #如果超时，应该是在最后一页了（nextbutton 不存在 超时）
         return
 
 
-for i in range(1, 100):
+for i in range(1, 6):           #真的很无奈   b站竟然限制查看粉丝信息 只能查看5页就限制了  并且是只能查看前五页
     get_the_page(i)
-print(Name)
-print(Url)
-book.save(u'粉丝数据.xlsx')
+book.save(u'粉丝数据4.xlsx')
