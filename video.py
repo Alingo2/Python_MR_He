@@ -1,4 +1,3 @@
-
 import numpy as np
 import cv2
 from PIL import Image
@@ -9,76 +8,95 @@ lower_blue = np.array([0, 0, 0])
 upper_blue = np.array([100, 100, 100])
 score = 0
 FrameNumber = 0
-#统计视频基本信息
-if cap.isOpened(): # 当成功打开视频时cap.isOpened()返回True,否则返回False
-    width = cap.get(3)
-    height = cap.get(4)
-    score += 100*(width*height)/(2048*1080)
-    subtitle_start = int(height*0.83)
-    subtitle_end = int(subtitle_start+height*0.13)      #我自己测试算得大概屏占比为13％
-    rate = cap.get(5)               #5对应的参数：帧速率
-    FrameNumber = int(cap.get(7))        #7对应的参数：视频文件的帧数
-    duration = FrameNumber/rate/60    # 帧速率/视频总帧数 是时间，除以60之后单位是分钟   即视频长度
-    if 5 < duration <= 10:
-        score += 100
-    elif 10 < duration <= 20 or 0 <= duration <= 5:
-        score += 80
-    else:
-        score += 60/(duration-20)
-    score += (rate/30)*100
-    print(width, height, rate, FrameNumber, duration, 'minutes')
+subtitle_start = 0
+subtitle_end = 0
+mark_height = 0
+width = 0
+height = 0
+
+def basic_info():                           #统计视频基本信息
+    if cap.isOpened(): # 当成功打开视频时cap.isOpened()返回True,否则返回False
+        global score, subtitle_end, subtitle_start, FrameNumber,mark_height,width, height                #修改全局变量
+        width = cap.get(3)
+        height = cap.get(4)
+        score += 100*(width*height)/(2048*1080)
+        subtitle_start = int(height*0.83)
+        mark_height = int(height*0.11)
+        subtitle_end = int(subtitle_start+height*0.13)      #我自己测试算得大概屏占比为13％
+        rate = cap.get(5)               #5对应的参数：帧速率
+        FrameNumber = int(cap.get(7))        #7对应的参数：视频文件的帧数
+        duration = FrameNumber/rate/60    # 帧速率/视频总帧数 是时间，除以60之后单位是分钟   即视频长度
+        if 5 < duration <= 10:
+            score += 100
+        elif 10 < duration <= 20 or 0 <= duration <= 5:
+            score += 80
+        else:
+            score += 60/(duration-20)
+        score += (rate/30)*100
+        print(width, height, rate, FrameNumber, duration, 'minutes')
+    return
 
 
 def get_img_info(frame):
     if frame is not None:
-        img = Image.fromarray(frame)
+        Im = []
+        #img = Image.fromarray(frame)
         im = frame[:, :, 0]
-        im = im[subtitle_start:subtitle_end, :]    #确定字幕的范围，注意不同的视频文件剪切的索引值不同
-        img = Image.fromarray(im)
-        thresh = 220        #将二值化阈值设为 220
-        _, im = cv2.threshold(im, thresh, 255, cv2.THRESH_BINARY)
-        img = Image.fromarray(im)
-        #img.show()
-    return im
+        im1 = im[subtitle_start:subtitle_end, :]    #确定字幕的范围，注意不同的视频文件剪切的索引值不同
+        im2 = im[0:mark_height, int(width)-int(width*0.22):int(width)]                  #右上角水印
+        im3 = im[0:mark_height, 0:int(width*0.22)]                      #左上角水印
+        #img = Image.fromarray(im1)
+        thresh = 220                                #将二值化阈值设为 220
+        thresh2 = 130                               #水印虽然也是白色 但要淡很多
+        _, im1 = cv2.threshold(im1, thresh, 255, cv2.THRESH_BINARY)
+        _, im2 = cv2.threshold(im2, thresh2, 255, cv2.THRESH_BINARY)
+        _, im3 = cv2.threshold(im3, thresh2, 255, cv2.THRESH_BINARY)
+        Im.append(im1)
+        Im.append(im2)
+        Im.append(im3)
+    return Im
 
 
+basic_info()
+#字幕打分：
 Frame = []          #将每帧的信息打包为列表
-count = 0
-for i in range(FrameNumber-1):
+sub_count = 0
+n = 0
+for i in range(FrameNumber-1):        #这里随机取了视频的第300帧来检测水印，因为水印肯定是要么没有要么一直存在的
+    if n <= 300:
+        n += 1
     sucess, frame = cap.read()
-    im = get_img_info(frame)
+    if n == 300:
+        global mark_dect
+        mark_dect = frame
+    im = get_img_info(frame)[0]
     if ((im ** 2).sum() / im.size * 100) > 1:
-        count += 1
-        print(count)
-if count/FrameNumber > 0.5:
+        sub_count += 1
+        print(sub_count)
+if sub_count/FrameNumber > 0.5:
     score += 100
 else:
-    score += 100*(count/FrameNumber)/0.5
-print("字幕占比：", 100*count/FrameNumber, "％")
+    score += 100*(sub_count/FrameNumber)/0.5
+print("字幕占比：", 100*sub_count/FrameNumber, "％")
+
+#水印检测：
+im1 = get_img_info(mark_dect)[1]
+im2 = get_img_info(mark_dect)[2]
+img1 = Image.fromarray(im1)
+img1.show()
+img2 = Image.fromarray(im2)
+img2.show()
+if ((im1 ** 2).sum() / im1.size * 100) > 1 and ((im2 ** 2).sum() / im2.size * 100) > 1:         #有两条水印
+    print("水印超过两条，怀疑为盗视频")
+    score -= 200
+else:
+    print("水印小于等于1条")
+    score += 200
+
 print("你的视频得分为：", score, "分")
-
-"""while(True):
-    # get a frame and show 获取视频帧并转成HSV格式, 利用cvtColor()将BGR格式转成HSV格式，参数为cv2.COLOR_BGR2HSV。
-    ret, frame = cap.read()
-    frame = cv2.resize(frame, (320, 240))
-    # Our operations on the frame come here
-    #gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
-
-    # Display the resulting frame
-    #cv2.imshow('frame', gray)
-    # change to hsv model
-    cv2.imshow('Capture', frame)
-    hsv = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)
-    # get mask 利用inRange()函数和HSV模型中蓝色范围的上下界获取mask，mask中原视频中的蓝色部分会被弄成白色，其他部分黑色。
-    mask = cv2.inRange(hsv, lower_blue, upper_blue)
-    cv2.imshow('Mask', mask)
-
-    # detect blue 将mask于原视频帧进行按位与操作，则会把mask中的白色用真实的图像替换：
-    res = cv2.bitwise_and(frame, frame, mask=mask)
-    cv2.imshow('Result', res)
-    if cv2.waitKey(1) & 0xFF == ord('q'):
-        break
-
-# When everything done, release the capture
+if score > 400:
+    print("此视频质量很好")
+else:
+    print("此视频质量有待提高")
 cap.release()
-cv2.destroyAllWindows()"""
+cv2.destroyAllWindows()

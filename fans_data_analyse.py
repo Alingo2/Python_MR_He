@@ -37,7 +37,7 @@ def get_info(url):
     soup = bs(response.text, 'html.parser')
     text = str(soup)
     list = re.split(r'"', text)
-    if len(list) >= 16:
+    if len(list) >= 16:         #防止有时候越界
         name = list[15]         #split后一个一个找出对应数据位置（毕竟都有规律嘛）
     if len(list) >= 20:
         sex = list[19]
